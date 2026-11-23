@@ -4,6 +4,7 @@ SolidWorks Sketch Operations
 Create sketches and draw 2D geometry.
 """
 
+import array
 import math
 import logging
 import traceback
@@ -12,7 +13,7 @@ from typing import Optional, Dict, List, Tuple
 import win32com.client
 import pythoncom
 
-from ..constants import SwErrors, SwPlanes
+from ..constants import SwErrors, SwPlanes, SwSlotCreationType, SwSlotLengthType
 
 logger = logging.getLogger(__name__)
 
@@ -416,4 +417,227 @@ class SketchOperations:
             
         except Exception as e:
             logger.error(f"Draw centerline error: {e}\n{traceback.format_exc()}")
+            return self._result(False, f"Error: {e}", SwErrors.swSketchError)
+    
+    def draw_arc_3point(self, x1: float = 0, y1: float = 0,
+                        x2: float = 50, y2: float = 0,
+                        x3: float = 25, y3: float = 25,
+                        unit: str = None) -> Dict:
+        """
+        Draw an arc through 3 points.
+        API: ISketchManager.Create3PointArc (current in SolidWorks 2027).
+        Point 1 = start, point 2 = end, point 3 = a point on the arc.
+        
+        Args:
+            x1, y1: Start point
+            x2, y2: End point
+            x3, y3: Point on the arc (defines the bulge)
+            unit: Unit for coordinates
+        
+        Returns:
+            Result dictionary
+        """
+        try:
+            doc, err = self.get_active_doc()
+            if err:
+                return err
+            
+            p1 = (self._units.to_meters(x1, unit), self._units.to_meters(y1, unit))
+            p2 = (self._units.to_meters(x2, unit), self._units.to_meters(y2, unit))
+            p3 = (self._units.to_meters(x3, unit), self._units.to_meters(y3, unit))
+            
+            arc = doc.SketchManager.Create3PointArc(
+                p1[0], p1[1], 0,
+                p2[0], p2[1], 0,
+                p3[0], p3[1], 0
+            )
+            
+            if arc is None:
+                return self._result(False, "Failed - ensure sketch is active",
+                                  SwErrors.swSketchError)
+            
+            unit_str = unit or self._units.default_unit.value
+            
+            return self._result(True,
+                f"3-point arc: ({x1},{y1}) -> ({x2},{y2}) via ({x3},{y3}) {unit_str}",
+                SwErrors.swSuccess)
+            
+        except Exception as e:
+            logger.error(f"Draw 3-point arc error: {e}\n{traceback.format_exc()}")
+            return self._result(False, f"Error: {e}", SwErrors.swSketchError)
+    
+    def draw_spline(self, points: list, unit: str = None) -> Dict:
+        """
+        Draw a spline through a list of (x, y) points.
+        API: ISketchManager.CreateSpline3 (current in SolidWorks 2027;
+        CreateSpline2 is obsolete). For a 2D spline, Surfs and Direction
+        are passed as null; SimulateNaturalEnds=True.
+        
+        Args:
+            points: List of (x, y) tuples, at least 2 points
+            unit: Unit for coordinates
+        
+        Returns:
+            Result dictionary
+        """
+        try:
+            doc, err = self.get_active_doc()
+            if err:
+                return err
+            
+            if not points or len(points) < 2:
+                return self._result(False, "Spline needs at least 2 points",
+                                  SwErrors.swInvalidInput)
+            
+            point_array = array.array('d')
+            for x, y in points:
+                point_array.append(self._units.to_meters(x, unit))
+                point_array.append(self._units.to_meters(y, unit))
+                point_array.append(0)  # Z coordinate
+            
+            # Null dispatch for Surfs / Direction (2D spline, no surface)
+            null_dispatch = win32com.client.VARIANT(pythoncom.VT_DISPATCH, None)
+            
+            result = doc.SketchManager.CreateSpline3(
+                point_array, null_dispatch, null_dispatch, True
+            )
+            
+            # CreateSpline3 has an out Status parameter; win32com returns
+            # (return_value, status) as a tuple in that case.
+            spline = result[0] if isinstance(result, tuple) else result
+            
+            if spline is None:
+                return self._result(False, "Failed - ensure sketch is active",
+                                  SwErrors.swSketchError)
+            
+            return self._result(True, f"Spline with {len(points)} points created",
+                              SwErrors.swSuccess,
+                              {"point_count": len(points)})
+            
+        except Exception as e:
+            logger.error(f"Draw spline error: {e}\n{traceback.format_exc()}")
+            return self._result(False, f"Error: {e}", SwErrors.swSketchError)
+    
+    def draw_slot(self, slot_type: str = "straight", width: float = 10,
+                  x1: float = 0, y1: float = 0,
+                  x2: float = 50, y2: float = 0,
+                  x3: float = 0, y3: float = 0,
+                  length_type: str = "center_center",
+                  arc_direction: int = 1, add_dimension: bool = False,
+                  unit: str = None) -> Dict:
+        """
+        Draw a slot in the active sketch.
+        API: ISketchManager.CreateSketchSlot (current in SolidWorks 2027;
+        there is no CreateSlot method).
+        
+        Args:
+            slot_type: "straight", "centerline" (centerpoint straight),
+                "arc" (centerpoint arc), "3pointarc" (3-point arc)
+            width: Slot width (diameter of the end arcs)
+            x1, y1: First point (slot start / arc center)
+            x2, y2: Second point (slot end)
+            x3, y3: Third point (arc slots only; ignored for straight slots)
+            length_type: "center_center" (length between arc centers) or
+                "full" (overall length)
+            arc_direction: -1 = clockwise, 1 = counter-clockwise (arc slots)
+            add_dimension: Auto-add dimensions to the slot
+            unit: Unit for dimensions
+        
+        Slot-type integer values are per secondary sources (the official
+        enum page lists names only); see constants.SwSlotCreationType.
+        """
+        try:
+            doc, err = self.get_active_doc()
+            if err:
+                return err
+            
+            type_map = {
+                "straight": SwSlotCreationType.STRAIGHT,
+                "centerline": SwSlotCreationType.CENTERLINE,
+                "arc": SwSlotCreationType.ARC,
+                "3pointarc": SwSlotCreationType.THREE_POINT_ARC,
+            }
+            if slot_type not in type_map:
+                return self._result(False,
+                    f"Unknown slot_type '{slot_type}'. Use: {list(type_map)}",
+                    SwErrors.swInvalidInput)
+            
+            length_map = {
+                "center_center": SwSlotLengthType.CENTER_CENTER,
+                "full": SwSlotLengthType.FULL_LENGTH,
+            }
+            if length_type not in length_map:
+                return self._result(False,
+                    f"Unknown length_type '{length_type}'. Use: {list(length_map)}",
+                    SwErrors.swInvalidInput)
+            
+            width_m = self._units.to_meters(width, unit)
+            p1 = (self._units.to_meters(x1, unit), self._units.to_meters(y1, unit))
+            p2 = (self._units.to_meters(x2, unit), self._units.to_meters(y2, unit))
+            p3 = (self._units.to_meters(x3, unit), self._units.to_meters(y3, unit))
+            
+            slot = doc.SketchManager.CreateSketchSlot(
+                int(type_map[slot_type]),
+                int(length_map[length_type]),
+                width_m,
+                p1[0], p1[1], 0,
+                p2[0], p2[1], 0,
+                p3[0], p3[1], 0,
+                int(arc_direction),
+                bool(add_dimension)
+            )
+            
+            if slot is None:
+                return self._result(False, "Failed - ensure sketch is active",
+                                  SwErrors.swSketchError)
+            
+            unit_str = unit or self._units.default_unit.value
+            
+            return self._result(True,
+                f"{slot_type} slot: width {width}{unit_str}",
+                SwErrors.swSuccess,
+                {"slot_type": slot_type, "width": width, "unit": unit_str})
+            
+        except Exception as e:
+            logger.error(f"Draw slot error: {e}\n{traceback.format_exc()}")
+            return self._result(False, f"Error: {e}", SwErrors.swSketchError)
+    
+    def trim_entities(self, x: float = 0, y: float = 0, option: int = 0,
+                      unit: str = None) -> Dict:
+        """
+        Trim sketch entities at a pick point.
+        API: ISketchManager.SketchTrim (current in SolidWorks 2027;
+        IModelDoc2.SketchTrim is obsolete). Trims the selected sketch
+        entities near the given point — select the entity first
+        (e.g. via execute_python), then trim at the pick location.
+        
+        Args:
+            x, y: Pick point in sketch coordinates
+            option: swSketchTrimChoice_e value (0 = default/closest)
+            unit: Unit for coordinates
+        
+        Returns:
+            Result dictionary
+        """
+        try:
+            doc, err = self.get_active_doc()
+            if err:
+                return err
+            
+            x_m = self._units.to_meters(x, unit)
+            y_m = self._units.to_meters(y, unit)
+            
+            trimmed = doc.SketchManager.SketchTrim(int(option), x_m, y_m, 0)
+            
+            if not trimmed:
+                return self._result(False,
+                    "Trim failed - select the entity to trim first, and "
+                    "pick a point on it",
+                    SwErrors.swSketchError)
+            
+            return self._result(True, f"Trimmed sketch entities at ({x}, {y})",
+                              SwErrors.swSuccess)
+            
+        except Exception as e:
+            logger.error(f"Trim entities error: {e}\n{traceback.format_exc()}")
             return self._result(False, f"Error: {e}", SwErrors.swSketchError)

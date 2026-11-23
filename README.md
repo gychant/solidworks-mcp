@@ -36,6 +36,14 @@
 
 ## 🛠️ Available Tools
 
+42 tools (v4.1.0). Method signatures verified against the official
+SolidWorks **2025** API help. Notes: extrude uses `FeatureExtrusion3`
+(current in 2025; `FeatureExtrusion2` is obsolete); patterns use the
+`CreateDefinition` feature-data route; sweep (`InsertProtrusionSwept3`)
+is intentionally NOT included — its exact 20-parameter signature did
+not surface from the 2025 docs, verify it against the installed type
+library before adding it.
+
 | Category | Tool | Description |
 |----------|------|-------------|
 | **Connection** | `connect_solidworks` | Connect to running SolidWorks instance |
@@ -45,19 +53,39 @@
 | **Documents** | `open_document` | Open an existing SolidWorks file |
 | **Documents** | `close_document` | Close the active document |
 | **Documents** | `save_document` | Save the active document |
+| **Documents** | `get_document_info` | Get information about the active document |
 | **Documents** | `list_open_documents` | List all open documents |
 | **Sketches** | `create_sketch` | Create a sketch on a plane (Front/Top/Right) |
+| **Sketches** | `create_sketch_on_face` | Create a sketch on an existing body face |
 | **Sketches** | `close_sketch` | Exit the active sketch |
+| **Sketches** | `get_sketch_status` | Sketch diagnostics (active state, names) |
 | **Sketches** | `draw_circle` | Draw a circle by center and radius |
 | **Sketches** | `draw_rectangle` | Draw a rectangle by two corners |
 | **Sketches** | `draw_line` | Draw a line between two points |
 | **Sketches** | `draw_arc` | Draw an arc by center and angles |
+| **Sketches** | `draw_arc_3point` | Draw an arc through 3 points |
+| **Sketches** | `draw_spline` | Draw a spline through points |
+| **Sketches** | `draw_slot` | Draw a slot (straight/centerline/arc/3-point arc) |
+| **Sketches** | `draw_centerline` | Draw a construction centerline (revolve axis) |
 | **Sketches** | `draw_polygon` | Draw a regular polygon (triangle, hex, etc.) |
+| **Sketches** | `trim_entities` | Trim selected sketch entities at a pick point |
 | **Features** | `extrude_sketch` | Boss-extrude the active sketch |
 | **Features** | `cut_extrude` | Cut-extrude to remove material |
 | **Features** | `fillet_edges` | Add fillets to selected edges |
 | **Features** | `chamfer_edges` | Add chamfers to selected edges |
 | **Features** | `list_features` | List all features in the model |
+| **Features** | `revolve_sketch` | Revolve the last sketch around its centerline |
+| **Features** | `loft_boss` | Loft a boss between the last two sketches |
+| **Features** | `loft_cut` | Loft a cut through the last two sketches |
+| **Features** | `hole_wizard` | Hole Wizard hole at sketch points |
+| **Features** | `linear_pattern` | Linear-pattern features along a direction |
+| **Features** | `circular_pattern` | Circular-pattern features around an axis |
+| **Features** | `shell` | Shell the solid, removing faces at given points |
+| **Features** | `mirror_feature` | Mirror features (or body) about a plane |
+| **Measure** | `measure_distance` | Measure distance between entities |
+| **Measure** | `get_mass_properties` | Mass, volume, area, center of mass, inertia |
+| **Export** | `export_document` | Export STL / STEP / IGES / PDF / Parasolid |
+| **Export** | `create_reference_plane` | Reference plane offset from a plane |
 | **Utilities** | `set_units` | Change default unit (mm/inch/cm/m/ft) |
 | **Utilities** | `execute_python` | Execute custom Python code in SW context |
 

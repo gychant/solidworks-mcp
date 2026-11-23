@@ -235,6 +235,86 @@ async def list_tools() -> list[Tool]:
                 "required": []
             }
         ),
+        Tool(
+            name="draw_arc_3point",
+            description="Draw an arc through 3 points (start, end, point on arc).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "x1": {"type": "number", "default": 0, "description": "Start X"},
+                    "y1": {"type": "number", "default": 0, "description": "Start Y"},
+                    "x2": {"type": "number", "default": 50, "description": "End X"},
+                    "y2": {"type": "number", "default": 0, "description": "End Y"},
+                    "x3": {"type": "number", "default": 25, "description": "Point-on-arc X"},
+                    "y3": {"type": "number", "default": 25, "description": "Point-on-arc Y"},
+                    "unit": {"type": "string", "description": "Unit"}
+                },
+                "required": []
+            }
+        ),
+        Tool(
+            name="draw_spline",
+            description="Draw a spline through a list of (x, y) points.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "points": {"type": "array", "description": "List of [x, y] points, at least 2", "items": {"type": "array", "items": {"type": "number"}}},
+                    "unit": {"type": "string", "description": "Unit"}
+                },
+                "required": ["points"]
+            }
+        ),
+        Tool(
+            name="draw_slot",
+            description="Draw a slot (straight, centerline, arc, or 3-point arc).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "slot_type": {"type": "string", "enum": ["straight", "centerline", "arc", "3pointarc"], "default": "straight", "description": "Slot type"},
+                    "width": {"type": "number", "default": 10, "description": "Slot width (end-arc diameter)"},
+                    "x1": {"type": "number", "default": 0, "description": "First point X"},
+                    "y1": {"type": "number", "default": 0, "description": "First point Y"},
+                    "x2": {"type": "number", "default": 50, "description": "Second point X"},
+                    "y2": {"type": "number", "default": 0, "description": "Second point Y"},
+                    "x3": {"type": "number", "default": 0, "description": "Third point X (arc slots)"},
+                    "y3": {"type": "number", "default": 0, "description": "Third point Y (arc slots)"},
+                    "length_type": {"type": "string", "enum": ["center_center", "full"], "default": "center_center", "description": "Length measured between arc centers or overall"},
+                    "arc_direction": {"type": "integer", "default": 1, "description": "-1 clockwise, 1 counter-clockwise (arc slots)"},
+                    "add_dimension": {"type": "boolean", "default": False, "description": "Auto-add dimensions"},
+                    "unit": {"type": "string", "description": "Unit"}
+                },
+                "required": []
+            }
+        ),
+        Tool(
+            name="draw_centerline",
+            description="Draw a construction centerline in the active sketch (used as a revolve axis).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "x1": {"type": "number", "default": 0, "description": "Start X"},
+                    "y1": {"type": "number", "default": 0, "description": "Start Y"},
+                    "x2": {"type": "number", "default": 0, "description": "End X"},
+                    "y2": {"type": "number", "default": 100, "description": "End Y"},
+                    "unit": {"type": "string", "description": "Unit"}
+                },
+                "required": []
+            }
+        ),
+        Tool(
+            name="trim_entities",
+            description="Trim selected sketch entities at a pick point.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "x": {"type": "number", "default": 0, "description": "Pick point X"},
+                    "y": {"type": "number", "default": 0, "description": "Pick point Y"},
+                    "option": {"type": "integer", "default": 0, "description": "Trim option (0 = default/closest)"},
+                    "unit": {"type": "string", "description": "Unit"}
+                },
+                "required": []
+            }
+        ),
         
         # Feature Tools
         Tool(
@@ -293,6 +373,179 @@ async def list_tools() -> list[Tool]:
             name="list_features",
             description="List all features in the model.",
             inputSchema={"type": "object", "properties": {}, "required": []}
+        ),
+
+        # Advanced Feature Tools (SolidWorks 2025 API)
+        Tool(
+            name="revolve_sketch",
+            description="Revolve the last sketch around its centerline (draw one with draw_centerline first).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "angle": {"type": "number", "default": 360, "description": "Revolution angle in degrees"},
+                    "end_condition": {"type": "string", "enum": ["blind", "through_all"], "default": "blind", "description": "End condition"},
+                    "reverse": {"type": "boolean", "default": False, "description": "Reverse direction"}
+                },
+                "required": []
+            }
+        ),
+        Tool(
+            name="loft_boss",
+            description="Loft a boss between the last two sketches (profiles).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "closed": {"type": "boolean", "default": False, "description": "Close the loft (periodic)"}
+                },
+                "required": []
+            }
+        ),
+        Tool(
+            name="loft_cut",
+            description="Loft a cut through the last two sketches (profiles).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "closed": {"type": "boolean", "default": False, "description": "Close the loft (periodic)"}
+                },
+                "required": []
+            }
+        ),
+        Tool(
+            name="hole_wizard",
+            description="Create a Hole Wizard hole at the points of the selected sketch. Create a sketch on the target face with a point at the hole position first.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "hole_type": {"type": "integer", "description": "GenericHoleType index in the Toolbox database (required)"},
+                    "standard_index": {"type": "integer", "description": "Hole standard index (required)"},
+                    "fastener_type_index": {"type": "integer", "description": "Fastener type index (required)"},
+                    "size": {"type": "string", "description": "Fastener size, e.g. M6 (required)"},
+                    "end_condition": {"type": "string", "enum": ["blind", "through_all"], "default": "through_all", "description": "End condition"},
+                    "diameter": {"type": "number", "default": 0, "description": "Hole diameter (0 = use Toolbox size)"},
+                    "depth": {"type": "number", "default": 10, "description": "Hole depth for blind holes"},
+                    "thread_class": {"type": "string", "default": "", "description": "Thread class, e.g. 6H (tapped holes)"},
+                    "unit": {"type": "string", "description": "Unit"}
+                },
+                "required": ["hole_type", "standard_index", "fastener_type_index", "size"]
+            }
+        ),
+        Tool(
+            name="linear_pattern",
+            description="Linear-pattern features along a direction (plane, edge or axis).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "direction_name": {"type": "string", "description": "Direction entity name, e.g. Front Plane"},
+                    "spacing": {"type": "number", "description": "Distance between instances"},
+                    "count": {"type": "integer", "description": "Total instances (including the seed)"},
+                    "feature_names": {"type": "array", "items": {"type": "string"}, "description": "Feature names to pattern, e.g. [Boss-Extrude1]"},
+                    "direction_type": {"type": "string", "enum": ["PLANE", "EDGE", "AXIS"], "default": "PLANE", "description": "Direction entity type"},
+                    "reverse": {"type": "boolean", "default": False, "description": "Reverse direction"},
+                    "unit": {"type": "string", "description": "Unit"}
+                },
+                "required": ["direction_name", "spacing", "count", "feature_names"]
+            }
+        ),
+        Tool(
+            name="circular_pattern",
+            description="Circular-pattern features around an axis.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "axis_name": {"type": "string", "description": "Axis entity name"},
+                    "angle": {"type": "number", "default": 360, "description": "Total angle in degrees"},
+                    "count": {"type": "integer", "description": "Total instances (including the seed)"},
+                    "feature_names": {"type": "array", "items": {"type": "string"}, "description": "Feature names to pattern"},
+                    "axis_type": {"type": "string", "enum": ["AXIS", "EDGE", "PLANE"], "default": "AXIS", "description": "Axis entity type"},
+                    "equal_spacing": {"type": "boolean", "default": True, "description": "Space instances equally"},
+                    "reverse": {"type": "boolean", "default": False, "description": "Reverse direction"}
+                },
+                "required": ["axis_name", "count", "feature_names"]
+            }
+        ),
+        Tool(
+            name="shell",
+            description="Shell the solid, removing the faces at the given [x, y, z] points.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "thickness": {"type": "number", "description": "Shell wall thickness"},
+                    "face_points": {"type": "array", "items": {"type": "array", "items": {"type": "number"}}, "description": "List of [x, y, z] points, one per face to remove"},
+                    "outward": {"type": "boolean", "default": False, "description": "Shell outward instead of inward"},
+                    "unit": {"type": "string", "description": "Unit"}
+                },
+                "required": ["thickness", "face_points"]
+            }
+        ),
+        Tool(
+            name="mirror_feature",
+            description="Mirror features (or the body) about a plane.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "feature_names": {"type": "array", "items": {"type": "string"}, "description": "Feature names to mirror"},
+                    "plane_name": {"type": "string", "description": "Mirror plane, e.g. Front Plane"},
+                    "mirror_body": {"type": "boolean", "default": False, "description": "Mirror the whole body"},
+                    "geometry_pattern": {"type": "boolean", "default": False, "description": "Use a geometry pattern"},
+                    "merge": {"type": "boolean", "default": True, "description": "Merge with the original"},
+                    "knit": {"type": "boolean", "default": False, "description": "Knit the mirrored surfaces"}
+                },
+                "required": ["plane_name"]
+            }
+        ),
+
+        # Measurement Tools
+        Tool(
+            name="measure_distance",
+            description="Measure the distance between two named entities, or between the currently selected entities.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "entity1": {"type": "string", "default": "", "description": "First entity name (optional; uses current selection if empty)"},
+                    "entity2": {"type": "string", "default": "", "description": "Second entity name (optional)"},
+                    "unit": {"type": "string", "description": "Unit"}
+                },
+                "required": []
+            }
+        ),
+        Tool(
+            name="get_mass_properties",
+            description="Get mass properties of the active document (mass, volume, surface area, center of mass, moments of inertia).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "unit": {"type": "string", "description": "Unit for lengths"}
+                },
+                "required": []
+            }
+        ),
+
+        # Export & Reference Geometry Tools
+        Tool(
+            name="export_document",
+            description="Export the active document (STL, STEP, IGES, PDF, Parasolid). The file extension drives the format.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "filepath": {"type": "string", "description": "Full output path, e.g. C:/Parts/MyPart.stl"},
+                    "format": {"type": "string", "description": "Format override (stl, step, iges, pdf, x_t) when the path has no extension"}
+                },
+                "required": ["filepath"]
+            }
+        ),
+        Tool(
+            name="create_reference_plane",
+            description="Create a reference plane offset from an existing plane.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "offset": {"type": "number", "description": "Offset distance"},
+                    "plane_name": {"type": "string", "default": "Front Plane", "description": "Plane to offset from"},
+                    "unit": {"type": "string", "description": "Unit"}
+                },
+                "required": ["offset"]
+            }
         ),
         
         # Sketch Management Tools
@@ -457,6 +710,58 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 arguments.get("sides", 6),
                 arguments.get("unit")
             )
+
+        elif name == "draw_arc_3point":
+            result = sw_automation.draw_arc_3point(
+                arguments.get("x1", 0),
+                arguments.get("y1", 0),
+                arguments.get("x2", 50),
+                arguments.get("y2", 0),
+                arguments.get("x3", 25),
+                arguments.get("y3", 25),
+                arguments.get("unit")
+            )
+
+        elif name == "draw_spline":
+            points = arguments.get("points", [])
+            points = [tuple(p) for p in points]
+            result = sw_automation.draw_spline(
+                points,
+                arguments.get("unit")
+            )
+
+        elif name == "draw_slot":
+            result = sw_automation.draw_slot(
+                arguments.get("slot_type", "straight"),
+                arguments.get("width", 10),
+                arguments.get("x1", 0),
+                arguments.get("y1", 0),
+                arguments.get("x2", 50),
+                arguments.get("y2", 0),
+                arguments.get("x3", 0),
+                arguments.get("y3", 0),
+                arguments.get("length_type", "center_center"),
+                arguments.get("arc_direction", 1),
+                arguments.get("add_dimension", False),
+                arguments.get("unit")
+            )
+
+        elif name == "draw_centerline":
+            result = sw_automation.draw_centerline(
+                arguments.get("x1", 0),
+                arguments.get("y1", 0),
+                arguments.get("x2", 0),
+                arguments.get("y2", 100),
+                arguments.get("unit")
+            )
+
+        elif name == "trim_entities":
+            result = sw_automation.trim_entities(
+                arguments.get("x", 0),
+                arguments.get("y", 0),
+                arguments.get("option", 0),
+                arguments.get("unit")
+            )
         
         # Feature Tools
         elif name == "extrude_sketch":
@@ -489,6 +794,104 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         
         elif name == "list_features":
             result = _list_features_fixed()
+
+        # Advanced Feature Tools
+        elif name == "revolve_sketch":
+            result = sw_automation.revolve_sketch(
+                arguments.get("angle", 360),
+                arguments.get("end_condition", "blind"),
+                arguments.get("reverse", False)
+            )
+
+        elif name == "loft_boss":
+            result = sw_automation.loft_boss(
+                arguments.get("closed", False)
+            )
+
+        elif name == "loft_cut":
+            result = sw_automation.loft_cut(
+                arguments.get("closed", False)
+            )
+
+        elif name == "hole_wizard":
+            result = sw_automation.hole_wizard(
+                arguments.get("hole_type"),
+                arguments.get("standard_index"),
+                arguments.get("fastener_type_index"),
+                arguments.get("size"),
+                arguments.get("end_condition", "through_all"),
+                arguments.get("diameter", 0),
+                arguments.get("depth", 10),
+                arguments.get("thread_class", ""),
+                arguments.get("unit")
+            )
+
+        elif name == "linear_pattern":
+            result = sw_automation.linear_pattern(
+                arguments.get("direction_name"),
+                arguments.get("spacing"),
+                arguments.get("count"),
+                arguments.get("feature_names", []),
+                arguments.get("direction_type", "PLANE"),
+                arguments.get("reverse", False),
+                arguments.get("unit")
+            )
+
+        elif name == "circular_pattern":
+            result = sw_automation.circular_pattern(
+                arguments.get("axis_name"),
+                arguments.get("angle", 360),
+                arguments.get("count"),
+                arguments.get("feature_names", []),
+                arguments.get("axis_type", "AXIS"),
+                arguments.get("equal_spacing", True),
+                arguments.get("reverse", False)
+            )
+
+        elif name == "shell":
+            result = sw_automation.shell(
+                arguments.get("thickness"),
+                arguments.get("face_points", []),
+                arguments.get("outward", False),
+                arguments.get("unit")
+            )
+
+        elif name == "mirror_feature":
+            result = sw_automation.mirror_feature(
+                arguments.get("feature_names", []),
+                arguments.get("plane_name"),
+                arguments.get("mirror_body", False),
+                arguments.get("geometry_pattern", False),
+                arguments.get("merge", True),
+                arguments.get("knit", False)
+            )
+
+        # Measurement Tools
+        elif name == "measure_distance":
+            result = sw_automation.measure_distance(
+                arguments.get("entity1", ""),
+                arguments.get("entity2", ""),
+                arguments.get("unit")
+            )
+
+        elif name == "get_mass_properties":
+            result = sw_automation.get_mass_properties(
+                arguments.get("unit")
+            )
+
+        # Export & Reference Geometry Tools
+        elif name == "export_document":
+            result = sw_automation.export_document(
+                arguments.get("filepath"),
+                arguments.get("format", "")
+            )
+
+        elif name == "create_reference_plane":
+            result = sw_automation.create_reference_plane(
+                arguments.get("offset"),
+                arguments.get("plane_name", "Front Plane"),
+                arguments.get("unit")
+            )
         
         # Sketch Management Tools
         elif name == "close_sketch":

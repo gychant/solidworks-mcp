@@ -2633,20 +2633,46 @@ Draw a circle in the active sketch.
 - [ ] Auto-detect SolidWorks
 - [ ] 5 new tools
 
-### Phase 2: Core Features [ ]
-- [ ] Arc tools
-- [ ] Spline tool
-- [ ] Polygon tool
-- [ ] Cut extrude
-- [ ] Fillet/Chamfer
-- [ ] Revolve
-- [ ] Measurements
+### Phase 2: Core Features [x] (implemented 2026-11-22)
+- [x] Arc tools (draw_arc_3point)
+- [x] Spline tool (draw_spline, CreateSpline3)
+- [x] Polygon tool
+- [x] Cut extrude
+- [x] Fillet/Chamfer
+- [x] Revolve (revolve_sketch, FeatureRevolve2)
+- [x] Measurements (measure_distance, get_mass_properties)
 
-### Phase 3: Advanced [ ]
-- [ ] Sweep
-- [ ] Loft
-- [ ] Patterns
-- [ ] Shell
+### Phase 3: Advanced [~] (partially implemented 2026-11-22)
+- [ ] Sweep — NOT implemented: current method is
+  IFeatureManager.InsertProtrusionSwept3, but its exact 20-parameter
+  signature did not surface from the 2025 docs. Verify against the
+  installed type library (SolidWorks.Interop.sldworks) before adding.
+- [x] Loft (loft_boss / loft_cut)
+- [x] Patterns (linear_pattern, circular_pattern — CreateDefinition route)
+- [x] Shell (shell — InsertFeatureShell)
+- [x] Mirror (mirror_feature — InsertMirrorFeature2)
+- [x] Hole Wizard (hole_wizard — HoleWizard5)
+- [x] Export (export_document — STL/STEP/IGES/PDF/Parasolid)
+- [x] Reference plane (create_reference_plane — InsertRefPlane)
+
+### 2025 API extension notes (2026-11-22)
+- All new method signatures were verified against the official
+  SolidWorks 2025 API help (help.solidworks.com/2025/english/api/).
+  An earlier 2027-based pass was corrected to 2025 at the owner's
+  request; the 2025 check changed sweep/shell/mirror from the
+  CreateDefinition route to direct methods.
+- Corrections found by the verification: FeatureExtrusion2 is obsolete
+  in 2025 (extrude now tries FeatureExtrusion3 first); the old
+  SwEndConditions values were wrong (ThroughAllBoth is 9, not 2 —
+  cut_extrude's through-all-both was passing ThroughNext).
+- Caveats: slot-type integers and InsertRefPlane constraint values
+  other than Distance=8 are secondary-source only; Hole Wizard
+  type/standard/fastener indices are Toolbox-version dependent;
+  mirror selection marks were not surfaced from the docs.
+- Tests: solidworks_mcp/tests/ — 28 mocked-COM unit tests pass on
+  Linux (python3 -m unittest discover -s solidworks_mcp/tests).
+  SolidWorks itself is Windows-only COM, so live verification needs a
+  Windows machine with SolidWorks 2025 installed.
 - [ ] Export tools
 
 ### Phase 4: Assembly & Drawing [ ]

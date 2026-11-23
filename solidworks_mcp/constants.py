@@ -74,15 +74,78 @@ class SwPlanes:
 # ============================================================================
 
 class SwEndConditions(IntEnum):
-    """Extrusion end conditions"""
+    """
+    Extrusion end conditions (swEndConditions_e).
+
+    Values verified against the official SolidWorks API enum page
+    (swEndConditions_e, 2025; unchanged in 2027):
+    https://help.solidworks.com/2025/english/api/swconst/SolidWorks.Interop.swconst~SolidWorks.Interop.swconst.swEndConditions_e.html
+
+    NOTE: an earlier version of this file had WRONG values
+    (ThroughNext=3, UpToVertex=4, UpToSurface=5, OffsetFromSurface=7,
+    ThroughAllBoth=2). ThroughAllBoth is 9, not 2 — cut_extrude's
+    "through all both directions" previously passed 2 (ThroughNext).
+    """
     swEndCondBlind = 0
     swEndCondThroughAll = 1
-    swEndCondThroughAllBoth = 2
-    swEndCondThroughNext = 3
-    swEndCondUpToVertex = 4
-    swEndCondUpToSurface = 5
+    swEndCondThroughNext = 2
+    # Deprecated: superseded by swEndCondUpToSelection
+    swEndCondUpToVertex = 3
+    # Deprecated: superseded by swEndCondUpToSelection
+    swEndCondUpToSurface = 4
+    swEndCondOffsetFromSurface = 5
     swEndCondMidPlane = 6
-    swEndCondOffsetFromSurface = 7
+    swEndCondUpToBody = 7
+    swEndCondThroughAllBoth = 9
+    swEndCondUpToSelection = 10
+    swEndCondUpToNext = 11
+
+
+# ============================================================================
+# Feature-data type IDs (swFeatureNameID_e)
+# ============================================================================
+
+class SwFeatureNameID:
+    """
+    Member NAMES of swFeatureNameID_e, used with
+    IFeatureManager.CreateDefinition(). The integer values are NOT
+    hard-coded here: they are resolved at runtime from the installed
+    SolidWorks type library via win32com.client.constants
+    (see SolidWorksAutomation._sw_const). The web API docs list member
+    names but not their integer values, so hard-coding them would be
+    guessing. If a name fails to resolve, the tool errors clearly.
+
+    Only the pattern members are used: sweep, shell and mirror all have
+    current direct methods in SolidWorks 2025 (InsertProtrusionSwept3,
+    InsertFeatureShell, InsertMirrorFeature2) and do not go through
+    CreateDefinition.
+    """
+    LINEAR_PATTERN = "swFmLPattern"
+    CIRCULAR_PATTERN = "swFmCirPattern"
+
+
+# ============================================================================
+# Sketch slot types (swSketchSlotCreationType_e)
+# ============================================================================
+
+class SwSlotCreationType(IntEnum):
+    """
+    Slot creation types for ISketchManager.CreateSketchSlot.
+
+    Values per secondary sources (official enum page lists names only);
+    verify against the installed swconst type library if a slot call
+    misbehaves. Length type: CenterCenter=0, FullLength=1 (same caveat).
+    """
+    STRAIGHT = 0        # straight slot (line)
+    CENTERLINE = 1      # centerpoint straight slot
+    ARC = 2             # centerpoint arc slot
+    THREE_POINT_ARC = 4  # 3-point arc slot
+
+
+class SwSlotLengthType(IntEnum):
+    """Slot length types for ISketchManager.CreateSketchSlot (same caveat)."""
+    CENTER_CENTER = 0
+    FULL_LENGTH = 1
 
 
 # ============================================================================

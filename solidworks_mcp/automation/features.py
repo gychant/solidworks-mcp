@@ -199,13 +199,15 @@ class FeatureOperations:
             # Step 2: Determine end condition
             end_cond = 6 if both_directions else 0  # 6=MidPlane, 0=Blind
             
-            # Step 3: Try extrusion methods
+            # Step 3: Try extrusion methods.
+            # Method 1 first is FeatureExtrusion3 — it is the CURRENT
+            # method in SolidWorks 2027 (FeatureExtrusion2 is obsolete);
+            # same 23-param shape as Extrusion2.
             feat = None
             method_used = ""
-            
-            # Method 1: FeatureExtrusion2 with 23 params (SW 2025 / v33)
+
             try:
-                feat = doc.FeatureManager.FeatureExtrusion2(
+                feat = doc.FeatureManager.FeatureExtrusion3(
                     True,           # Sd - single direction
                     False,          # Flip
                     False,          # Dir - direction
@@ -231,11 +233,45 @@ class FeatureOperations:
                     False           # FlipStartOffset
                 )
                 if feat:
-                    method_used = "FeatureExtrusion2_23p"
+                    method_used = "FeatureExtrusion3_23p"
             except Exception as e:
-                logger.debug(f"FeatureExtrusion2 (23p) failed: {e}")
-            
-            # Method 2: FeatureExtrusion2 with 20 params (older SW versions)
+                logger.debug(f"FeatureExtrusion3 (23p) failed: {e}")
+
+            # Method 2: FeatureExtrusion2 with 23 params (SW 2025 / v33,
+            # obsolete in 2027 but still present)
+            if feat is None:
+                try:
+                    feat = doc.FeatureManager.FeatureExtrusion2(
+                        True,           # Sd - single direction
+                        False,          # Flip
+                        False,          # Dir - direction
+                        end_cond,       # T1 - end condition (0=Blind, 6=MidPlane)
+                        0,              # T2 - end condition 2
+                        depth_m,        # D1 - depth
+                        depth_m,        # D2 - depth 2
+                        False,          # Dchk1 - draft on/off
+                        False,          # Dchk2 - draft on/off
+                        False,          # Ddir1 - draft outward
+                        False,          # Ddir2 - draft outward 2
+                        0.0,            # Dang1 - draft angle (radians)
+                        0.0,            # Dang2 - draft angle 2
+                        False,          # OffsetReverse1
+                        False,          # OffsetReverse2
+                        False,          # TranslateSurface1
+                        False,          # TranslateSurface2
+                        True,           # Merge - merge result
+                        True,           # UseFeatScope
+                        True,           # UseAutoSelect
+                        0,              # T0 - start condition
+                        0.0,            # StartOffset
+                        False           # FlipStartOffset
+                    )
+                    if feat:
+                        method_used = "FeatureExtrusion2_23p"
+                except Exception as e:
+                    logger.debug(f"FeatureExtrusion2 (23p) failed: {e}")
+
+            # Method 3: FeatureExtrusion2 with 20 params (older SW versions)
             if feat is None:
                 try:
                     feat = doc.FeatureManager.FeatureExtrusion2(
@@ -250,23 +286,6 @@ class FeatureOperations:
                         method_used = "FeatureExtrusion2_20p"
                 except Exception as e:
                     logger.debug(f"FeatureExtrusion2 (20p) failed: {e}")
-            
-            # Method 3: FeatureExtrusion3 (some SW versions)
-            if feat is None:
-                try:
-                    feat = doc.FeatureManager.FeatureExtrusion3(
-                        True, False, False, end_cond, 0,
-                        depth_m, 0,
-                        False, False, False, False,
-                        0.0, 0.0,
-                        False, False, False,
-                        True, True, True,
-                        0, 0.0, False
-                    )
-                    if feat:
-                        method_used = "FeatureExtrusion3"
-                except Exception as e:
-                    logger.debug(f"FeatureExtrusion3 failed: {e}")
             
             if feat is None:
                 sketch_info = self._get_sketch_info(doc)
@@ -333,7 +352,7 @@ class FeatureOperations:
             # Determine end condition
             if through_all:
                 if both_directions:
-                    end_cond = 2  # swEndCondThroughAllBoth
+                    end_cond = 9  # swEndCondThroughAllBoth (verified: 9, not 2)
                 else:
                     end_cond = 1  # swEndCondThroughAll
                 cut_depth = 0

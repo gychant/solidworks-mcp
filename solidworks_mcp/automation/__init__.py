@@ -8,19 +8,28 @@ from .base import SolidWorksAutomation as _BaseAutomation
 from .documents import DocumentOperations
 from .sketches import SketchOperations
 from .features import FeatureOperations
+from .advanced_features import AdvancedFeatureOperations
+from .measure import MeasureOperations
+from .export import ExportOperations
 
 
-class SolidWorksAutomation(_BaseAutomation, DocumentOperations, 
-                           SketchOperations, FeatureOperations):
+class SolidWorksAutomation(_BaseAutomation, DocumentOperations,
+                           SketchOperations, FeatureOperations,
+                           AdvancedFeatureOperations, MeasureOperations,
+                           ExportOperations):
     """
     Complete SolidWorks automation class
-    
+
     Combines all operation mixins:
     - Base: Connection, document access, utilities
     - Documents: Create, open, save, close documents
     - Sketches: Create sketches, draw 2D geometry
     - Features: Extrude, cut, fillet, chamfer
-    
+    - Advanced Features: Revolve, loft, Hole Wizard, patterns, shell,
+      sweep (SolidWorks 2027 API)
+    - Measure: Distance measurement, mass properties
+    - Export: Document export, reference planes
+
     Example:
         sw = SolidWorksAutomation()
         sw.connect()
@@ -36,6 +45,9 @@ class SolidWorksAutomation(_BaseAutomation, DocumentOperations,
 __all__ = [
     "SolidWorksAutomation",
     "DocumentOperations",
-    "SketchOperations", 
+    "SketchOperations",
     "FeatureOperations",
+    "AdvancedFeatureOperations",
+    "MeasureOperations",
+    "ExportOperations",
 ]

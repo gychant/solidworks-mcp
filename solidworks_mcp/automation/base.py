@@ -104,6 +104,36 @@ class SolidWorksAutomation:
             result["data"] = data
         return result
     
+    def _sw_const(self, name: str) -> int:
+        """
+        Resolve a SolidWorks API constant by its swconst name at runtime.
+
+        The official web API docs list enum member names but not their
+        integer values, so values are never hard-coded here. After a
+        win32com Dispatch of SldWorks.Application, pywin32 exposes the
+        installed type library's constants via win32com.client.constants.
+
+        Args:
+            name: e.g. "swFmSweep", "swEndCondThroughAllBoth"
+
+        Returns:
+            Integer constant value.
+
+        Raises:
+            AttributeError if the name does not resolve (e.g. wrong
+            SolidWorks version or the type library is not loaded).
+        """
+        import win32com.client as _wc
+        try:
+            value = getattr(_wc.constants, name)
+        except AttributeError:
+            raise AttributeError(
+                f"SolidWorks constant '{name}' did not resolve from the "
+                f"installed type library. Check the constant name against "
+                f"the swconst help for your SolidWorks version."
+            )
+        return int(value)
+
     # ========================================================================
     # Connection Methods
     # ========================================================================
